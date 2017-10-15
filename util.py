@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import cross_val_score
 
 
 def status(feature):
@@ -30,7 +32,7 @@ def get_combined_data():
     # merging train data and test data for future feature engineering
     combined_data = train.append(test)
     combined_data.reset_index(inplace=True)
-    combined_data.drop('index', inplace=True, axis=1)
+    combined_data.drop(['index', 'PassengerId'], inplace=True, axis=1)
 
     return combined_data
 
@@ -137,6 +139,8 @@ def process_age(combined_data):
                 return grouped_median.loc['male', 3, 'Mr']['Age']
 
     # Processing age and finding better solution than the mean
+    # To prevent data leakage, we preform operations separately.
+
     # For the train set
     grouped_train = combined_data.head(891).groupby(['Sex', 'Pclass', 'Title'])
     grouped_median_train = grouped_train.median()
@@ -222,8 +226,8 @@ def process_cabin(combined_data):
     Function for processing Cabin feature and creating
     dummy variables based on it.
     
-    :param combined_data: 
-    :return: 
+    :param combined_data: Dataset
+    :return: Improved Dataset
     """
     # replacing missing cabins with U (for Uknown)
     combined_data.Cabin.fillna('U', inplace=True)
@@ -239,6 +243,7 @@ def process_cabin(combined_data):
     combined_data.drop('Cabin', axis=1, inplace=True)
 
     status('cabin')
+    return combined_data
 
 
 def process_sex(combined_data):
@@ -285,6 +290,7 @@ def process_ticket(combined_data):
     :param combined_data: Dataset
     :return: Improved Dataset
     """
+
     def clean_ticket(ticket):
         """
         Helper function for processing ticket variable by firstly
@@ -337,4 +343,6 @@ def process_family(combined_data):
     return combined_data
 
 
-
+def compute_score(clf, X, y, scoring='accuracy', cv=5):
+    x_val = cross_val_score(clf, X, y, cv=cv, scoring=scoring)
+    return np.mean(x_val)
