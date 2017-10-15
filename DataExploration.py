@@ -50,6 +50,7 @@ plt.grid(True)
 # plt.show()
 # So the passengers younger than 10 are more likely to survive!
 
+
 # Analyze fare tickets and correlation with survival higher chance of death for cheaper tickets
 figure = plt.figure(figsize=(15, 8))
 figure.canvas.set_window_title('Survival based on ticket fare')
@@ -98,6 +99,6 @@ df = pd.DataFrame([survived_embark, dead_embark])
 df.index = ['Survived', 'Dead']
 df.plot(kind='bar', stacked=True, figsize=(15, 8), color=['c', 'g', 'orange'])
 plt.title('Survival based on embarkation')
-
 plt.show()
 # Here we se no distinct correlation
+

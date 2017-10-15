@@ -1,14 +1,9 @@
 import pandas as pd
-import numpy as np
 import util
 from matplotlib import pyplot as plt
 
-from sklearn.pipeline import make_pipeline
-from sklearn.feature_selection import SelectKBest
 from sklearn.model_selection import StratifiedKFold
-from sklearn.grid_search import GridSearchCV
-from sklearn.ensemble.gradient_boosting import GradientBoostingClassifier
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectFromModel
 
@@ -60,7 +55,7 @@ combined6 = util.process_cabin(combined5)
 
 
 # 1 if male 0 if female
-combined7 = util.process_sex(combined6)
+combined7 = util.process_sex_d(combined6)
 # print(combined7.head())
 
 
@@ -117,34 +112,39 @@ test_reduced = model.transform(test)
 # MODELING AND TUNING
 
 # Tuning Random Forests with grid search
-parameter_grid = {
-    'max_depth': [4, 6, 8],
-    'n_estimators': [50, 10],
-    'max_features': ['sqrt', 'auto', 'log2'],
-    'min_samples_split': [2, 3, 10],
-    'min_samples_leaf': [1, 3, 10],
-    'bootstrap': [True, False],
-}
-forest = RandomForestClassifier()
-cross_validation = StratifiedKFold(targets, n_folds=5)
+search = False
+# If we want to continue a grid search set above variable to True
+if search is True:
+    parameter_grid = {
+        'max_depth': [4, 6, 8],
+        'n_estimators': [50, 10],
+        'max_features': ['sqrt', 'auto', 'log2'],
+        'min_samples_split': [2, 3, 10],
+        'min_samples_leaf': [1, 3, 10],
+        'bootstrap': [True, False],
+    }
+    forest = RandomForestClassifier()
+    cross_validation = StratifiedKFold(n_splits=5)
 
-grid_search = GridSearchCV(forest,
-                           scoring='accuracy',
-                           param_grid=parameter_grid,
-                           cv=cross_validation)
+    grid_search = GridSearchCV(forest,
+                               scoring='accuracy',
+                               param_grid=parameter_grid,
+                               cv=cross_validation)
 
-grid_search.fit(train, targets)
-model = grid_search
-parameters = grid_search.best_params_
+    grid_search.fit(train, targets)
+    model = grid_search
+    parameters = grid_search.best_params_
 
-print('Best score: {}'.format(grid_search.best_score_))
-print('Best parameters: {}'.format(grid_search.best_params_))
+    print('Best score: {}'.format(grid_search.best_score_))
+    print('Best parameters: {}'.format(grid_search.best_params_))
+else:
+    # After doing grid search best parameters came up like this
+    parameters = {'bootstrap': True, 'min_samples_leaf': 1, 'n_estimators': 50,
+                  'min_samples_split': 2, 'max_features': 'sqrt', 'max_depth': 6}
 
-# parameters = {'bootstrap': False, 'min_samples_leaf': 3, 'n_estimators': 50,
-#               'min_samples_split': 10, 'max_features': 'sqrt', 'max_depth': 6}
-#
-# model = RandomForestClassifier(**parameters)
-# model.fit(train, targets)
+    model = RandomForestClassifier(**parameters)
+    model.fit(train_reduced, targets)
 
-# Print accuracy score
-print(util.compute_score(model, train, targets, scoring='accuracy'))
+
+# Print mean cv score
+print("Mean score: ", util.compute_score(model, train, targets, scoring='accuracy'))

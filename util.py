@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_val_score
 
 
@@ -75,7 +74,6 @@ def get_titles(combined_data):
     return combined_data
 
 
-# todo fix warning
 def process_age(combined_data):
     """
     Function for processing and filling missing age values.
@@ -152,7 +150,7 @@ def process_age(combined_data):
     combined_data.head(891).Age = combined_data.head(891).apply(
         lambda r: fill_ages(r, grouped_median_train) if np.isnan(r['Age']) else r['Age'], axis=1
     )
-
+    print("pre ovoga")
     combined_data.iloc[891:].Age = combined_data.iloc[891:].apply(
         lambda r: fill_ages(r, grouped_median_test) if np.isnan(r['Age']) else r['Age'], axis=1
     )
@@ -194,6 +192,8 @@ def process_fares(combined_data):
     """
     # there's one missing fare value - replacing it with the mean.
     combined_data.head(891).Fare.fillna(combined_data.head(891).Fare.mean(), inplace=True)
+
+    # Do it separately for test set
     combined_data.iloc[891:].Fare.fillna(combined_data.iloc[891:].Fare.mean(), inplace=True)
 
     status('fare')
@@ -258,6 +258,26 @@ def process_sex(combined_data):
     combined_data['Sex'] = combined_data['Sex'].map({'male': 1, 'female': 0})
 
     status('sex')
+    return combined_data
+
+
+def process_sex_d(combined_data):
+    """
+    Function for processing sex feature and creating
+    dummy variables based on it.
+    :param combined_data: Dataset
+    :return: Improved Dataset
+    """
+    # encoding into 2 categories:
+    sex_dummies = pd.get_dummies(combined_data['Sex'])
+
+    # adding dummy variables
+    combined_data = pd.concat([combined_data, sex_dummies], axis=1)
+
+    # removing "Sex" since it's no loner needed
+    combined_data.drop('Sex', axis=1, inplace=True)
+
+    status('pclass')
     return combined_data
 
 
@@ -344,5 +364,15 @@ def process_family(combined_data):
 
 
 def compute_score(clf, X, y, scoring='accuracy', cv=5):
+    """
+    Function for computing mean k-fold cross validation score.
+    
+    :param clf: Predictor
+    :param X: Feature data
+    :param y: Target data
+    :param scoring: scoring type -> string
+    :param cv: number k for k-fold cross validation
+    :return: 
+    """
     x_val = cross_val_score(clf, X, y, cv=cv, scoring=scoring)
     return np.mean(x_val)
