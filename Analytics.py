@@ -1,12 +1,12 @@
 import pandas as pd
 import util
 from matplotlib import pyplot as plt
-
+import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectFromModel
-
+from sklearn.preprocessing import StandardScaler
 
 # FEATURE ENGINEERING
 
@@ -14,6 +14,8 @@ from sklearn.feature_selection import SelectFromModel
 # The reason we are doing it is because test set doesn't have Survived
 # target feature, and we want to sync our train and test set
 # with all newly added features.
+
+# PREPROCESS PIPELINE
 
 # Combine train and test set
 combined0 = util.get_combined_data()
@@ -84,12 +86,19 @@ train = combined.head(891)  # Initial training set
 test = combined.iloc[891:]  # Initial test set
 
 
+# SCALING DATA
+scaler = StandardScaler()
+scaler.fit(train)
+train_data = scaler.transform(train)
+# Restore DataFrame
+train = pd.DataFrame(train_data, index=train.index, columns=train.columns)
+
+
 # FEATURE SELECTION
 
-# Tree based models can be used to
+# Tree based models can be used to extract feature importance
 clf = RandomForestClassifier(n_estimators=50, max_features='sqrt')
 clf = clf.fit(train, targets)
-
 # Plot feature importance
 features = pd.DataFrame()
 features['feature'] = train.columns
@@ -97,16 +106,71 @@ features['importance'] = clf.feature_importances_
 features.sort_values(by=['importance'], ascending=True, inplace=True)
 features.set_index('feature', inplace=True)
 features.plot(kind='barh', figsize=(20, 20))
-plt.show()
 
-
-model = SelectFromModel(clf, prefit=True)
-train_reduced = model.transform(train)
+reduction_model = SelectFromModel(clf, prefit=True)
+train_reduced = reduction_model.transform(train_data)
 # print(train_reduced.shape)
-
-
-test_reduced = model.transform(test)
+test_reduced = reduction_model.transform(test)
 # print(test_reduced.shape)
+
+# Selecting top 20 features with PCA // Doesn't actually helps a lot
+# from sklearn.decomposition import KernelPCA
+# kpca = KernelPCA(n_components=2, kernel='precomputed', fit_inverse_transform=True, gamma=10)
+# a = kpca.fit_transform(train)
+# a = kpca.inverse_transform(a)
+
+
+# Visualizing dataset after PCA
+fig = plt.figure(figsize=(15, 8))
+from sklearn.decomposition import PCA
+pca = PCA(n_components=2)
+x_pca = pca.fit_transform(train_reduced)
+# x_pca = pca.inverse_transform(x_pca)
+reds = targets == 0
+blues = targets == 1
+plt.subplot(aspect='equal')
+plt.scatter(x_pca[reds, 0], x_pca[reds, 1], c="red",
+            s=20, edgecolor='k')
+plt.scatter(x_pca[blues, 0], x_pca[blues, 1], c="blue",
+            s=20, edgecolor='k')
+plt.title("Projection by PCA")
+plt.xlabel("1st principal component")
+plt.ylabel("2nd component")
+
+
+# CLUSTERING
+
+# determine k using elbow method on various types of algorithms
+
+from sklearn.cluster import KMeans, MiniBatchKMeans
+from scipy.spatial.distance import cdist
+
+# k means determine k
+distortions = []
+K = range(1, 20)
+for k in K:
+    kmeanModel = MiniBatchKMeans(n_clusters=k, random_state=42).fit(train_reduced)
+    kmeanModel.fit(train_reduced)
+    distortions.append(
+        sum(np.min(cdist(train_reduced, kmeanModel.cluster_centers_, 'euclidean'), axis=1)) / train_reduced.shape[0]
+    )
+# Plot the elbow
+figure = plt.figure(figsize=(15, 8))
+plt.plot(K, distortions, 'bx-')
+plt.xlabel('k')
+plt.ylabel('Distortion')
+plt.title('The Elbow Method showing the optimal k')
+
+
+
+# After finding acceptable k, lets plot the results
+plt.figure(figsize=(15, 8))
+y_pred = MiniBatchKMeans(n_clusters=11, random_state=42).fit_predict(x_pca)
+plt.scatter(x_pca[:, 0], x_pca[:, 1], c=y_pred)
+plt.title("Cluster predictions")
+
+
+
 
 
 # MODELING AND TUNING
@@ -131,7 +195,7 @@ if search is True:
                                param_grid=parameter_grid,
                                cv=cross_validation)
 
-    grid_search.fit(train, targets)
+    grid_search.fit(train_reduced, targets)
     model = grid_search
     parameters = grid_search.best_params_
 
@@ -147,4 +211,7 @@ else:
 
 
 # Print mean cv score
-print("Mean score: ", util.compute_score(model, train, targets, scoring='accuracy'))
+print("Mean score: ", util.compute_score(model, train_reduced, targets, scoring='accuracy'))
+
+
+plt.show()  # For showing plots
