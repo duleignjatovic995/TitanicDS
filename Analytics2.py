@@ -336,21 +336,6 @@ def process_pclass():
     status('pclass')
 
 
-def process_pclass():
-    global combined
-    # encoding into 3 categories:
-    pclass_dummies = pd.get_dummies(combined['Pclass'], prefix="Pclass")
-
-    # adding dummy variables
-    combined = pd.concat([combined, pclass_dummies], axis=1)
-
-    # removing "Pclass"
-
-    combined.drop('Pclass', axis=1, inplace=True)
-
-    status('pclass')
-
-
 process_pclass()
 
 
