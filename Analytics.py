@@ -113,6 +113,7 @@ train_reduced = reduction_model.transform(train_data)
 test_reduced = reduction_model.transform(test)
 # print(test_reduced.shape)
 
+
 # Selecting top 20 features with PCA // Doesn't actually helps a lot
 # from sklearn.decomposition import KernelPCA
 # kpca = KernelPCA(n_components=2, kernel='precomputed', fit_inverse_transform=True, gamma=10)
@@ -120,36 +121,42 @@ test_reduced = reduction_model.transform(test)
 # a = kpca.inverse_transform(a)
 
 
-# Visualizing dataset after PCA
-fig = plt.figure(figsize=(15, 8))
+# DIMENSIONALITY REDUCTION FOR PLOTTING
 from sklearn.decomposition import PCA
+
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 8))
 pca = PCA(n_components=2)
 x_pca = pca.fit_transform(train_reduced)
 # x_pca = pca.inverse_transform(x_pca)
 reds = targets == 0
 blues = targets == 1
-plt.subplot(aspect='equal')
-plt.scatter(x_pca[reds, 0], x_pca[reds, 1], c="red",
-            s=20, edgecolor='k')
-plt.scatter(x_pca[blues, 0], x_pca[blues, 1], c="blue",
-            s=20, edgecolor='k')
-plt.title("Projection by PCA")
-plt.xlabel("1st principal component")
-plt.ylabel("2nd component")
+ax1.scatter(x_pca[reds, 0], x_pca[reds, 1], c="red", s=20, edgecolor='k')
+ax1.scatter(x_pca[blues, 0], x_pca[blues, 1], c="blue", s=20, edgecolor='k')
+ax1.set_title("PCA Visualization")
+ax1.set_xlabel("1st principal component")
+ax1.set_ylabel("2nd component")
 
 
 # CLUSTERING
-
-# determine k using elbow method on various types of algorithms
-
-from sklearn.cluster import KMeans, MiniBatchKMeans
+from sklearn.cluster import SpectralClustering as Clust
+from sklearn.cluster import KMeans
 from scipy.spatial.distance import cdist
 
-# k means determine k
+
+# Plot cluster predictions
+# y_pred = Clust(n_clusters=11, random_state=42).fit_predict(x_pca)
+y_pred = Clust().fit_predict(x_pca)
+ax2.scatter(x_pca[:, 0], x_pca[:, 1], c=y_pred, s=20)
+ax2.set_title("Cluster predictions")
+ax2.set_xlabel("1st principal component")
+ax2.set_ylabel("2nd component")
+
+
+# k-means: determine optimal k using ELBOW method // k_optimal = 5 | 8 | 12
 distortions = []
 K = range(1, 20)
 for k in K:
-    kmeanModel = MiniBatchKMeans(n_clusters=k, random_state=42).fit(train_reduced)
+    kmeanModel = KMeans(n_clusters=k, random_state=42).fit(train_reduced)
     kmeanModel.fit(train_reduced)
     distortions.append(
         sum(np.min(cdist(train_reduced, kmeanModel.cluster_centers_, 'euclidean'), axis=1)) / train_reduced.shape[0]
@@ -160,17 +167,6 @@ plt.plot(K, distortions, 'bx-')
 plt.xlabel('k')
 plt.ylabel('Distortion')
 plt.title('The Elbow Method showing the optimal k')
-
-
-
-# After finding acceptable k, lets plot the results
-plt.figure(figsize=(15, 8))
-y_pred = MiniBatchKMeans(n_clusters=11, random_state=42).fit_predict(x_pca)
-plt.scatter(x_pca[:, 0], x_pca[:, 1], c=y_pred)
-plt.title("Cluster predictions")
-
-
-
 
 
 # MODELING AND TUNING
