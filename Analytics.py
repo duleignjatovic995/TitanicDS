@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import GridSearchCV
-from sklearn.ensemble import RandomForestClassifier
+from sklearn import ensemble
 from sklearn.feature_selection import SelectFromModel
 from sklearn.preprocessing import StandardScaler
 
@@ -92,12 +92,13 @@ scaler.fit(train)
 train_data = scaler.transform(train)
 # Restore DataFrame
 train = pd.DataFrame(train_data, index=train.index, columns=train.columns)
-
+print("shap", train.shape)
 
 # FEATURE SELECTION
 
+
 # Tree based models can be used to extract feature importance
-clf = RandomForestClassifier(n_estimators=50, max_features='sqrt')
+clf = ensemble.RandomForestClassifier(n_estimators=50, max_features='sqrt')
 clf = clf.fit(train, targets)
 # Plot feature importance
 features = pd.DataFrame()
@@ -113,12 +114,41 @@ train_reduced = reduction_model.transform(train_data)
 test_reduced = reduction_model.transform(test)
 # print(test_reduced.shape)
 
-
 # Selecting top 20 features with PCA // Doesn't actually helps a lot
 # from sklearn.decomposition import KernelPCA
 # kpca = KernelPCA(n_components=2, kernel='precomputed', fit_inverse_transform=True, gamma=10)
 # a = kpca.fit_transform(train)
 # a = kpca.inverse_transform(a)
+
+
+# Decision Tree for ploting
+from sklearn import tree
+import pydotplus
+import collections
+clf = tree.DecisionTreeClassifier(max_depth=4)
+clf.fit(train, targets)
+
+
+# Visualize tree
+dot_data = tree.export_graphviz(clf,
+                                feature_names=train.columns,
+                                out_file=None,
+                                filled=True,
+                                rounded=True)
+graph = pydotplus.graph_from_dot_data(dot_data)
+colors = ('turquoise', 'orange')
+edges = collections.defaultdict(list)
+
+for edge in graph.get_edge_list():
+    edges[edge.get_source()].append(int(edge.get_destination()))
+
+for edge in edges:
+    edges[edge].sort()
+    for i in range(2):
+        dest = graph.get_node(str(edges[edge][i]))[0]
+        dest.set_fillcolor(colors[i])
+
+# graph.write_png('tree.png')  # Commented because .png was already created
 
 
 # DIMENSIONALITY REDUCTION FOR PLOTTING
@@ -171,6 +201,23 @@ plt.title('The Elbow Method showing the optimal k')
 
 # MODELING AND TUNING
 
+# Set data for training
+TrainData = train_reduced
+
+
+# Trying different models
+
+# Random Forests
+clf = ensemble.RandomForestClassifier()
+clf.fit(TrainData, targets)
+print("Random Forest: ", util.compute_score(clf, TrainData, targets, scoring='accuracy'))
+
+# Ada Boost
+clf = ensemble.AdaBoostClassifier()
+clf.fit(TrainData, targets)
+print("Ada Boos: ", util.compute_score(clf, TrainData, targets, scoring='accuracy'))
+
+
 # Tuning Random Forests with grid search
 search = False
 # If we want to continue a grid search set above variable to True
@@ -183,7 +230,7 @@ if search is True:
         'min_samples_leaf': [1, 3, 10],
         'bootstrap': [True, False],
     }
-    forest = RandomForestClassifier()
+    forest = ensemble.RandomForestClassifier()
     cross_validation = StratifiedKFold(n_splits=5)
 
     grid_search = GridSearchCV(forest,
@@ -191,7 +238,7 @@ if search is True:
                                param_grid=parameter_grid,
                                cv=cross_validation)
 
-    grid_search.fit(train_reduced, targets)
+    grid_search.fit(TrainData, targets)
     model = grid_search
     parameters = grid_search.best_params_
 
@@ -202,12 +249,12 @@ else:
     parameters = {'bootstrap': True, 'min_samples_leaf': 1, 'n_estimators': 50,
                   'min_samples_split': 2, 'max_features': 'sqrt', 'max_depth': 6}
 
-    model = RandomForestClassifier(**parameters)
-    model.fit(train_reduced, targets)
+    model = ensemble.RandomForestClassifier(**parameters)
+    model.fit(TrainData, targets)
 
 
 # Print mean cv score
-print("Mean score: ", util.compute_score(model, train_reduced, targets, scoring='accuracy'))
+print("Mean score: ", util.compute_score(model, TrainData, targets, scoring='accuracy'))
 
 
-plt.show()  # For showing plots
+# plt.show()  # For showing plots
