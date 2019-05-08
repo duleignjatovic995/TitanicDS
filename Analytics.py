@@ -175,7 +175,7 @@ from scipy.spatial.distance import cdist
 
 # Plot cluster predictions
 # y_pred = Clust(n_clusters=11, random_state=42).fit_predict(x_pca)
-y_pred = Clust().fit_predict(x_pca)
+y_pred = Clust(n_clusters=7).fit_predict(x_pca)
 ax2.scatter(x_pca[:, 0], x_pca[:, 1], c=y_pred, s=20)
 ax2.set_title("Cluster predictions")
 ax2.set_xlabel("1st principal component")
@@ -257,4 +257,4 @@ else:
 print("Mean score: ", util.compute_score(model, TrainData, targets, scoring='accuracy'))
 
 
-# plt.show()  # For showing plots
+plt.show()  # For showing plots
